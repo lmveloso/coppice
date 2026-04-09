@@ -183,20 +183,21 @@ pub fn get_failed_action_logs(
 ) -> Result<String, String> {
     let cwd = get_project_path(&db, &project_id)?;
 
-    // Get the failed run ID
-    let _runs_output = Command::new("gh")
+    // First, resolve the PR's head branch name (Command::new doesn't
+    // invoke a shell, so we cannot use $(...) expansions).
+    let head_ref_output = Command::new("gh")
         .args([
-            "run", "list",
-            "--branch", &format!("$(gh pr view {} --json headRefName -q .headRefName)", pr_number),
-            "--status", "failure",
-            "--limit", "1",
-            "--json", "databaseId",
+            "pr", "view", &pr_number.to_string(),
+            "--json", "headRefName",
+            "-q", ".headRefName",
         ])
         .current_dir(&cwd)
         .output()
-        .map_err(|e| format!("Failed to list runs: {}", e))?;
+        .map_err(|e| format!("Failed to get PR head ref: {}", e))?;
 
-    // Alternative: get from PR checks directly
+    let head_ref = String::from_utf8_lossy(&head_ref_output.stdout).trim().to_string();
+
+    // Get from PR checks directly
     let checks_output = Command::new("gh")
         .args([
             "pr", "checks", &pr_number.to_string(),
@@ -207,15 +208,21 @@ pub fn get_failed_action_logs(
 
     let checks_text = String::from_utf8_lossy(&checks_output.stdout).to_string();
 
-    // Get the latest failed run logs
+    // Get the latest failed run for this branch
+    let mut run_list_args = vec![
+        "run", "list",
+        "--status", "failure",
+        "--limit", "1",
+        "--json", "databaseId",
+        "-q", ".[0].databaseId",
+    ];
+    if !head_ref.is_empty() {
+        run_list_args.push("--branch");
+        run_list_args.push(&head_ref);
+    }
+
     let run_list = Command::new("gh")
-        .args([
-            "run", "list",
-            "--status", "failure",
-            "--limit", "1",
-            "--json", "databaseId",
-            "-q", ".[0].databaseId",
-        ])
+        .args(&run_list_args)
         .current_dir(&cwd)
         .output()
         .map_err(|e| format!("Failed to get run ID: {}", e))?;

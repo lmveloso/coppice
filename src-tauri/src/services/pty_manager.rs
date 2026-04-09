@@ -43,13 +43,20 @@ impl PtyManager {
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
         let mut cmd = if cfg!(target_os = "windows") {
-            // On Windows, use PowerShell (preferred) or cmd.exe as fallback
+            // On Windows, prefer pwsh (PowerShell 7+/Core), then
+            // powershell.exe (Windows PowerShell 5.1), then cmd.exe.
             let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-            let use_powershell = which_exists("powershell.exe");
+            let ps_exe = if which_exists("pwsh") {
+                Some("pwsh")
+            } else if which_exists("powershell.exe") {
+                Some("powershell.exe")
+            } else {
+                None
+            };
 
             if let Some(command) = command {
-                if use_powershell {
-                    let mut cmd = CommandBuilder::new("powershell.exe");
+                if let Some(ps) = ps_exe {
+                    let mut cmd = CommandBuilder::new(ps);
                     cmd.args(["-NoLogo", "-Command", command]);
                     cmd
                 } else {
@@ -57,8 +64,8 @@ impl PtyManager {
                     cmd.args(["/c", command]);
                     cmd
                 }
-            } else if use_powershell {
-                let mut cmd = CommandBuilder::new("powershell.exe");
+            } else if let Some(ps) = ps_exe {
+                let mut cmd = CommandBuilder::new(ps);
                 cmd.arg("-NoLogo");
                 cmd
             } else {
