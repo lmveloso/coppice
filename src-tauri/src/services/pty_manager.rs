@@ -70,7 +70,7 @@ impl PtyManager {
 
             if let Some(command) = command {
                 let mut cmd = CommandBuilder::new(&shell);
-                cmd.arg("-l");
+                cmd.arg("-li");
                 cmd.arg("-c");
                 cmd.arg(command);
                 cmd
@@ -82,14 +82,32 @@ impl PtyManager {
         };
         cmd.cwd(cwd);
 
-        // Inherit full environment, then set terminal-specific vars
-        for (key, value) in std::env::vars() {
-            cmd.env(key, value);
+        if cfg!(target_os = "windows") {
+            // Windows: inherit full environment — PowerShell/cmd already
+            // have the correct PATH from the system environment.
+            for (key, value) in std::env::vars() {
+                cmd.env(key, value);
+            }
+            cmd.env("TERM", "xterm-256color");
+        } else {
+            // macOS/Linux: Do NOT inherit the app's PATH — .app bundles and
+            // some Linux launchers start with a minimal PATH. The login shell
+            // (-l flag) will source ~/.zshrc / ~/.bash_profile to get the
+            // correct PATH with Homebrew, nvm, yarn, etc.
+            cmd.env("TERM", "xterm-256color");
+            cmd.env("COLORTERM", "truecolor");
+            cmd.env("LANG", "en_US.UTF-8");
+            cmd.env("LC_ALL", "en_US.UTF-8");
+            if let Ok(home) = std::env::var("HOME") {
+                cmd.env("HOME", home);
+            }
+            if let Ok(user) = std::env::var("USER") {
+                cmd.env("USER", user);
+            }
+            if let Ok(logname) = std::env::var("LOGNAME") {
+                cmd.env("LOGNAME", logname);
+            }
         }
-        cmd.env("TERM", "xterm-256color");
-        cmd.env("COLORTERM", "truecolor");
-        cmd.env("LANG", "en_US.UTF-8");
-        cmd.env("LC_ALL", "en_US.UTF-8");
 
         let child = pair
             .slave
