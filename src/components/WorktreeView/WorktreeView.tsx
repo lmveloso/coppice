@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "../../stores/appStore";
+import { DiffViewer } from "../DiffViewer/DiffViewer";
 import * as commands from "../../lib/commands";
 
 export function WorktreeView() {
@@ -88,50 +88,71 @@ export function WorktreeView() {
         <span className="text-xs text-text-tertiary font-mono">{liveBranch ?? worktree.branch}</span>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <ActionButton title="New Claude session" icon="claude" onClick={() => addTab(wtId, "claude", worktree.path, "claude")} />
           <ActionButton title="Open in VS Code" icon="vscode" onClick={() => commands.openInVscode(worktree.path)} />
           <ActionButton title="Open terminal" icon="terminal" onClick={() => commands.openInTerminal(worktree.path)} />
-          <ActionButton title="Open in Finder" icon="finder" onClick={() => commands.openInFinder(worktree.path)} />
+          <ActionButton title="Open in Finder" icon="finder" onClick={() => commands.openInFinder(worktree.path)} tooltipAlign="right" />
         </div>
       </header>
 
-      {/* Tab bar — h-9 = 2.25rem */}
-      <div className="flex items-center gap-0 px-2 h-9 border-b border-border-primary shrink-0 bg-bg-secondary">
-        {tabs.map((tab) => (
-          <Tab
-            key={tab.id}
-            label={tab.label}
-            type={tab.type}
-            active={tab.id === activeTabId}
-            onClick={() => setActiveTab(wtId, tab.id)}
-            onClose={() => closeTab(wtId, tab.id)}
-          />
-        ))}
-        <div className="flex items-center gap-0.5 ml-1">
+      {/* Tab bar */}
+      <div className="flex h-10 shrink-0 bg-bg-secondary">
+        <div className="flex flex-1 min-w-0 overflow-x-auto">
+          {tabs.map((tab) => (
+            <Tab
+              key={tab.id}
+              label={tab.label}
+              type={tab.type}
+              active={tab.id === activeTabId}
+              onClick={() => setActiveTab(wtId, tab.id)}
+              onClose={() => closeTab(wtId, tab.id)}
+            />
+          ))}
+        </div>
+        <div className="flex shrink-0">
           <button
-            className="px-1.5 py-0.5 text-text-tertiary hover:text-text-secondary text-xs rounded hover:bg-bg-hover transition-colors"
+            className="flex items-center justify-center w-10 h-full text-text-tertiary hover:text-text-secondary hover:bg-bg-hover transition-colors outline-none"
             onClick={() => addTab(wtId, "terminal", worktree.path)}
             title="New terminal"
           >
-            + Term
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 4l4 3-4 3M7 10h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
           <button
-            className="px-1.5 py-0.5 text-text-tertiary hover:text-text-secondary text-xs rounded hover:bg-bg-hover transition-colors"
+            className="flex items-center justify-center w-10 h-full text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors outline-none"
             onClick={() => addTab(wtId, "claude", worktree.path, "claude")}
             title="New Claude session"
           >
-            + Claude
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Content area — terminals are rendered in App.tsx terminal-layer */}
+      {/* Content area — terminals rendered in App.tsx, diffs rendered here */}
       <div className="flex-1 min-h-0 relative">
         {tabs.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
             <p className="text-text-tertiary text-sm">No tabs open</p>
           </div>
         )}
+        {(() => {
+          const activeTab = tabs.find((t) => t.id === activeTabId);
+          if (activeTab?.type === "diff" && activeTab.diffFile && activeTab.diffMode) {
+            return (
+              <div className="absolute inset-0 z-10">
+                <DiffViewer
+                  cwd={activeTab.cwd}
+                  file={activeTab.diffFile}
+                  mode={activeTab.diffMode}
+                  baseBranch={activeTab.diffBaseBranch}
+                />
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
     </div>
   );
@@ -145,36 +166,41 @@ function Tab({
   onClose,
 }: {
   label: string;
-  type: "terminal" | "claude";
+  type: "terminal" | "claude" | "diff";
   active: boolean;
   onClick: () => void;
   onClose: () => void;
 }) {
+  const dotColor =
+    type === "claude" ? "bg-accent" : type === "diff" ? "bg-warning" : "bg-text-tertiary";
+
   return (
-    <button
-      className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-t transition-colors group ${
+    <div
+      className={`flex items-center gap-2 px-3 text-xs cursor-pointer group relative select-none outline-none ${
         active
-          ? "bg-bg-primary text-text-primary border-t border-x border-border-primary -mb-px"
-          : "text-text-tertiary hover:text-text-secondary"
+          ? "text-text-primary bg-bg-primary"
+          : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover/50"
       }`}
       onClick={onClick}
+      tabIndex={-1}
     >
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+      )}
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? dotColor : "bg-text-tertiary/40"}`} />
+      <span className="truncate max-w-[140px]">{label}</span>
       <span
-        className={`w-2 h-2 rounded-full ${
-          type === "claude" ? "bg-accent" : "bg-text-tertiary"
-        }`}
-      />
-      {label}
-      <span
-        className="opacity-0 group-hover:opacity-100 ml-1 hover:text-error transition-opacity"
+        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-text-tertiary/20 transition-all shrink-0 -mr-1"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
       >
-        x
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+          <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -182,18 +208,14 @@ function ActionButton({
   title,
   icon,
   onClick,
+  tooltipAlign,
 }: {
   title: string;
   icon: string;
   onClick: () => void;
+  tooltipAlign?: "right";
 }) {
   const icons: Record<string, React.ReactNode> = {
-    claude: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M5 7h4M7 5v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    ),
     vscode: (
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
         <path d="M10 1l-6 5.5L10 12M4 6.5L1 4v6l3-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -220,7 +242,9 @@ function ActionButton({
       >
         {icons[icon]}
       </button>
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-[11px] text-text-primary bg-bg-tertiary border border-border-secondary rounded shadow-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity z-50">
+      <div className={`absolute top-full mt-1 px-2 py-1 text-[11px] text-text-primary bg-bg-tertiary border border-border-secondary rounded shadow-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity z-50 ${
+        tooltipAlign === "right" ? "right-0" : "left-1/2 -translate-x-1/2"
+      }`}>
         {title}
       </div>
     </div>

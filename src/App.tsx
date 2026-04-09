@@ -11,18 +11,14 @@ function App() {
   const activeTabByWorktree = useAppStore((s) => s.activeTabByWorktree);
   const runnersByWorktree = useAppStore((s) => s.runnersByWorktree);
 
-  // Collect ALL tab terminals across all worktrees
-  const allTabs: Array<{
-    id: string;
-    cwd: string;
-    command?: string;
-    visible: boolean;
-  }> = [];
+  // Collect ALL terminal/claude tabs (not diff — those render in WorktreeView)
+  const terminalTabs: Array<{ id: string; cwd: string; command?: string; visible: boolean }> = [];
 
   for (const [wtId, tabs] of Object.entries(tabsByWorktree)) {
     const activeTab = activeTabByWorktree[wtId];
     for (const tab of tabs) {
-      allTabs.push({
+      if (tab.type === "diff") continue;
+      terminalTabs.push({
         id: tab.id,
         cwd: tab.cwd,
         command: tab.command,
@@ -31,20 +27,13 @@ function App() {
     }
   }
 
-  // Collect ALL runner terminals across all worktrees
-  const allRunners: Array<{
-    id: string;
-    cwd: string;
-    command: string;
-  }> = [];
-
+  // Collect ALL runner terminals
+  const allRunners: Array<{ id: string; cwd: string; command: string }> = [];
   for (const [, runners] of Object.entries(runnersByWorktree)) {
     for (const [, runner] of Object.entries(runners)) {
-      allRunners.push({
-        id: runner.id,
-        cwd: runner.cwd,
-        command: runner.command,
-      });
+      // Skip idle runners (panel open but not yet started)
+      if (runner.status === "idle") continue;
+      allRunners.push({ id: runner.id, cwd: runner.cwd, command: runner.command });
     }
   }
 
@@ -53,9 +42,9 @@ function App() {
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0 bg-bg-primary relative">
         <WorktreeView />
-        {/* All tab terminals — always mounted, visibility-controlled */}
-        <div id="terminal-layer" className="absolute inset-0" style={{ top: "calc(3rem + 2.25rem)", pointerEvents: "none" }}>
-          {allTabs.map((t) => (
+        {/* Terminal layer — always mounted */}
+        <div id="terminal-layer" className="absolute inset-0" style={{ top: "calc(3rem + 2.5rem)", pointerEvents: "none" }}>
+          {terminalTabs.map((t) => (
             <div
               key={t.id}
               className="absolute inset-0"
@@ -64,29 +53,17 @@ function App() {
                 pointerEvents: t.visible ? "auto" : "none",
               }}
             >
-              <TerminalPanel
-                sessionId={t.id}
-                cwd={t.cwd}
-                command={t.command}
-                keepAlive
-              />
+              <TerminalPanel sessionId={t.id} cwd={t.cwd} command={t.command} keepAlive />
             </div>
           ))}
         </div>
       </main>
 
-      {/* Hidden pool for runner terminals — always mounted, never unmounts.
-          SidebarRunners uses DOM reparenting to move these into visible slots. */}
+      {/* Runner terminal pool */}
       <div id="runner-terminal-pool" style={{ position: "fixed", left: -9999, top: -9999, width: 400, height: 9999 }}>
         {allRunners.map((r) => (
           <div key={r.id} id={`runner-term-${r.id}`} style={{ width: "100%", height: 150 }}>
-            <TerminalPanel
-              sessionId={r.id}
-              cwd={r.cwd}
-              command={r.command}
-              fontSize={10}
-              keepAlive
-            />
+            <TerminalPanel sessionId={r.id} cwd={r.cwd} command={r.command} fontSize={10} keepAlive />
           </div>
         ))}
       </div>

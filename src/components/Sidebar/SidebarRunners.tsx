@@ -8,6 +8,7 @@ export function SidebarRunners() {
   const worktreesByProject = useAppStore((s) => s.worktreesByProject);
   const projects = useAppStore((s) => s.projects);
   const runnersByWorktree = useAppStore((s) => s.runnersByWorktree);
+  const expandRunner = useAppStore((s) => s.expandRunner);
   const openOrRestartRunner = useAppStore((s) => s.openOrRestartRunner);
   const toggleRunner = useAppStore((s) => s.toggleRunner);
   const closeRunner = useAppStore((s) => s.closeRunner);
@@ -72,7 +73,7 @@ export function SidebarRunners() {
                 className="flex items-center gap-1.5 text-[11px] text-text-secondary hover:text-text-primary transition-colors"
                 onClick={() => {
                   if (!runner) {
-                    openOrRestartRunner(wtId, key, command, worktree!.path);
+                    expandRunner(wtId, key, command, worktree!.path);
                   } else {
                     toggleRunner(wtId, key);
                   }

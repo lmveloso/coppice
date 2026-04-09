@@ -61,6 +61,30 @@ export async function getGitStatus(path: string): Promise<GitFileStatus[]> {
   return invoke("get_git_status", { path });
 }
 
+export async function getFileContent(
+  path: string,
+  file: string,
+  gitRef?: string
+): Promise<string> {
+  return invoke("get_file_content", { path, file, gitRef });
+}
+
+export async function getMergeBase(path: string, baseBranch?: string): Promise<string> {
+  return invoke("get_merge_base", { path, baseBranch });
+}
+
+export async function getFileDiff(path: string, file: string): Promise<string> {
+  return invoke("get_file_diff", { path, file });
+}
+
+export async function getPrDiffFiles(path: string, baseBranch?: string): Promise<GitFileStatus[]> {
+  return invoke("get_pr_diff_files", { path, baseBranch });
+}
+
+export async function getPrFileDiff(path: string, file: string, baseBranch?: string): Promise<string> {
+  return invoke("get_pr_file_diff", { path, file, baseBranch });
+}
+
 export async function renameWorktree(id: string, name: string): Promise<void> {
   return invoke("rename_worktree", { id, name });
 }

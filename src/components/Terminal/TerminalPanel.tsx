@@ -1,9 +1,10 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as commands from "../../lib/commands";
 import "@xterm/xterm/css/xterm.css";
 
@@ -140,44 +141,34 @@ export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, keepAliv
     };
   }, [sessionId, cwd, command]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "copy";
-  }, []);
+  // Listen for Tauri native file drops — only handle if this terminal is visible
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const unlisten = getCurrentWindow().onDragDropEvent((event) => {
+      if (event.payload.type !== "drop") return;
 
-      // Extract file paths from the drop
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        const paths: string[] = [];
-        for (let i = 0; i < files.length; i++) {
-          // Electron/Tauri exposes .path on File objects
-          const file = files[i] as File & { path?: string };
-          if (file.path) {
-            paths.push(file.path);
-          }
-        }
-        if (paths.length > 0) {
-          // Write file paths into the terminal, space-separated and quoted
-          const text = paths.map((p) => `"${p}"`).join(" ");
-          commands.terminalWrite(sessionId, text).catch(() => {});
-        }
+      // Check if this terminal is the visible one (parent not hidden)
+      const parent = container.closest("[style]") as HTMLElement | null;
+      if (parent && parent.style.visibility === "hidden") return;
+      // Also skip if parent has pointerEvents none (background terminal)
+      if (parent && parent.style.pointerEvents === "none") return;
+
+      const paths = event.payload.paths;
+      if (paths.length > 0) {
+        const text = paths.map((p: string) => `"${p}"`).join(" ");
+        commands.terminalWrite(sessionId, text).catch(() => {});
       }
-    },
-    [sessionId]
-  );
+    });
+
+    return () => { unlisten.then((fn) => fn()); };
+  }, [sessionId]);
 
   return (
     <div
       ref={containerRef}
       className="bg-bg-primary"
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
       style={{
         position: "absolute",
         inset: 0,

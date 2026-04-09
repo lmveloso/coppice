@@ -31,6 +31,11 @@ pub fn run() {
             commands::worktree::list_branches,
             commands::worktree::get_current_branch,
             commands::worktree::get_git_status,
+            commands::worktree::get_file_content,
+            commands::worktree::get_merge_base,
+            commands::worktree::get_file_diff,
+            commands::worktree::get_pr_diff_files,
+            commands::worktree::get_pr_file_diff,
             // Terminal commands
             commands::terminal::terminal_spawn,
             commands::terminal::terminal_write,

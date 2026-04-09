@@ -219,6 +219,139 @@ pub fn get_git_status(path: String) -> Result<Vec<GitFileStatus>, String> {
     Ok(statuses)
 }
 
+/// Read file content from a specific git ref (or working tree)
+#[tauri::command]
+pub fn get_file_content(path: String, file: String, git_ref: Option<String>) -> Result<String, String> {
+    if let Some(r) = git_ref {
+        // Read from git object
+        let output = Command::new("git")
+            .args(["show", &format!("{}:{}", r, file)])
+            .current_dir(&path)
+            .output()
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+
+        if !output.status.success() {
+            // File doesn't exist at that ref (new file)
+            return Ok(String::new());
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        // Read from working tree
+        let file_path = std::path::Path::new(&path).join(&file);
+        std::fs::read_to_string(&file_path)
+            .map_err(|e| format!("Failed to read file: {}", e))
+    }
+}
+
+/// Get the merge-base commit between current HEAD and a base branch
+#[tauri::command]
+pub fn get_merge_base(path: String, base_branch: Option<String>) -> Result<String, String> {
+    let base = base_branch.unwrap_or_else(|| "main".to_string());
+    let output = Command::new("git")
+        .args(["merge-base", &base, "HEAD"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to get merge-base: {}", e))?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Get diff for a single file (uncommitted changes)
+#[tauri::command]
+pub fn get_file_diff(path: String, file: String) -> Result<String, String> {
+    // Try staged diff first, fall back to unstaged
+    let output = Command::new("git")
+        .args(["diff", "HEAD", "--", &file])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to get diff: {}", e))?;
+
+    let diff = String::from_utf8_lossy(&output.stdout).to_string();
+
+    // If empty, try diff against nothing (new file)
+    if diff.trim().is_empty() {
+        let empty_path = if cfg!(target_os = "windows") { "NUL" } else { "/dev/null" };
+        let output2 = Command::new("git")
+            .args(["diff", "--no-index", empty_path, &file])
+            .current_dir(&path)
+            .output()
+            .unwrap_or(output);
+        return Ok(String::from_utf8_lossy(&output2.stdout).to_string());
+    }
+
+    Ok(diff)
+}
+
+/// Get all files changed in the PR (diff against base branch)
+#[tauri::command]
+pub fn get_pr_diff_files(path: String, base_branch: Option<String>) -> Result<Vec<GitFileStatus>, String> {
+    let base = base_branch.unwrap_or_else(|| "main".to_string());
+
+    // Get merge base
+    let merge_base = Command::new("git")
+        .args(["merge-base", &base, "HEAD"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to get merge-base: {}", e))?;
+
+    let base_commit = String::from_utf8_lossy(&merge_base.stdout).trim().to_string();
+    if base_commit.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let output = Command::new("git")
+        .args(["diff", "--name-status", &base_commit, "HEAD"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to get PR diff: {}", e))?;
+
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+
+    let files = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(2, '\t').collect();
+            if parts.len() == 2 {
+                Some(GitFileStatus {
+                    status: parts[0].to_string(),
+                    file: parts[1].to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(files)
+}
+
+/// Get diff for a file against the PR base branch
+#[tauri::command]
+pub fn get_pr_file_diff(path: String, file: String, base_branch: Option<String>) -> Result<String, String> {
+    let base = base_branch.unwrap_or_else(|| "main".to_string());
+
+    let merge_base = Command::new("git")
+        .args(["merge-base", &base, "HEAD"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to get merge-base: {}", e))?;
+
+    let base_commit = String::from_utf8_lossy(&merge_base.stdout).trim().to_string();
+    if base_commit.is_empty() {
+        return Err("Could not find merge base".to_string());
+    }
+
+    let output = Command::new("git")
+        .args(["diff", &base_commit, "HEAD", "--", &file])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to get diff: {}", e))?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
 fn find_project(db: &Database, project_id: &str) -> Result<Project, String> {
     let projects = db.list_projects().map_err(|e| e.to_string())?;
     projects

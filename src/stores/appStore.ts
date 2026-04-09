@@ -6,10 +6,14 @@ import * as commands from "../lib/commands";
 
 export interface TabInfo {
   id: string;
-  type: "terminal" | "claude";
+  type: "terminal" | "claude" | "diff";
   label: string;
   command?: string;
   cwd: string;
+  // For diff tabs
+  diffFile?: string;
+  diffMode?: "uncommitted" | "pr";
+  diffBaseBranch?: string;
 }
 
 export type RunnerStatus = "running" | "stopped" | "idle";
@@ -63,10 +67,12 @@ interface AppState {
 
   // Actions — tabs
   addTab: (worktreeId: string, type: "terminal" | "claude", cwd: string, command?: string) => void;
+  openDiffTab: (worktreeId: string, file: string, cwd: string, mode: "uncommitted" | "pr", baseBranch?: string) => void;
   closeTab: (worktreeId: string, tabId: string) => void;
   setActiveTab: (worktreeId: string, tabId: string) => void;
 
   // Actions — runners
+  expandRunner: (worktreeId: string, key: string, command: string, cwd: string) => void;
   openOrRestartRunner: (worktreeId: string, key: string, command: string, cwd: string) => void;
   toggleRunner: (worktreeId: string, key: string) => void;
   closeRunner: (worktreeId: string, key: string) => void;
@@ -187,6 +193,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
+  openDiffTab: (worktreeId, file, cwd, mode, baseBranch) => {
+    const tabs = get().tabsByWorktree[worktreeId] ?? [];
+    // Reuse existing diff tab for same file+mode
+    const existing = tabs.find(
+      (t) => t.type === "diff" && t.diffFile === file && t.diffMode === mode
+    );
+    if (existing) {
+      set((s) => ({
+        activeTabByWorktree: { ...s.activeTabByWorktree, [worktreeId]: existing.id },
+      }));
+      return;
+    }
+    const shortName = file.split("/").pop() ?? file;
+    const tab: TabInfo = {
+      id: `diff-${worktreeId}-${Date.now()}`,
+      type: "diff",
+      label: `${shortName} (${mode === "pr" ? "PR" : "diff"})`,
+      cwd,
+      diffFile: file,
+      diffMode: mode,
+      diffBaseBranch: baseBranch,
+    };
+    set((s) => ({
+      tabsByWorktree: {
+        ...s.tabsByWorktree,
+        [worktreeId]: [...(s.tabsByWorktree[worktreeId] ?? []), tab],
+      },
+      activeTabByWorktree: {
+        ...s.activeTabByWorktree,
+        [worktreeId]: tab.id,
+      },
+    }));
+  },
+
   closeTab: (worktreeId, tabId) => {
     const s = get();
     const tabs = s.tabsByWorktree[worktreeId] ?? [];
@@ -209,6 +249,34 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ── Runners ──
+
+  expandRunner: (worktreeId, key, command, cwd) => {
+    const runners = get().runnersByWorktree[worktreeId] ?? {};
+    if (runners[key]) {
+      // Already exists, just open it
+      set((s) => ({
+        runnersByWorktree: {
+          ...s.runnersByWorktree,
+          [worktreeId]: { ...s.runnersByWorktree[worktreeId], [key]: { ...runners[key], open: true } },
+        },
+      }));
+      return;
+    }
+    // Create slot without spawning — idle status, no terminal ID yet
+    const runner: RunnerInfo = {
+      id: `runner-${key}-${worktreeId}-idle`,
+      open: true,
+      status: "idle",
+      command,
+      cwd,
+    };
+    set((s) => ({
+      runnersByWorktree: {
+        ...s.runnersByWorktree,
+        [worktreeId]: { ...(s.runnersByWorktree[worktreeId] ?? {}), [key]: runner },
+      },
+    }));
+  },
 
   openOrRestartRunner: async (worktreeId, key, command, cwd) => {
     const s = get();

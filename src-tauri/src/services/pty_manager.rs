@@ -42,24 +42,43 @@ impl PtyManager {
             })
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| {
-            if cfg!(target_os = "windows") {
-                "cmd.exe".to_string()
-            } else {
-                "/bin/bash".to_string()
-            }
-        });
+        let mut cmd = if cfg!(target_os = "windows") {
+            // On Windows, use PowerShell (preferred) or cmd.exe as fallback
+            let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+            let use_powershell = which_exists("powershell.exe");
 
-        let mut cmd = if let Some(command) = command {
-            let mut cmd = CommandBuilder::new(&shell);
-            cmd.arg("-l");
-            cmd.arg("-c");
-            cmd.arg(command);
-            cmd
+            if let Some(command) = command {
+                if use_powershell {
+                    let mut cmd = CommandBuilder::new("powershell.exe");
+                    cmd.args(["-NoLogo", "-Command", command]);
+                    cmd
+                } else {
+                    let mut cmd = CommandBuilder::new(&shell);
+                    cmd.args(["/c", command]);
+                    cmd
+                }
+            } else if use_powershell {
+                let mut cmd = CommandBuilder::new("powershell.exe");
+                cmd.arg("-NoLogo");
+                cmd
+            } else {
+                CommandBuilder::new(&shell)
+            }
         } else {
-            let mut cmd = CommandBuilder::new(&shell);
-            cmd.arg("-l");
-            cmd
+            // On macOS/Linux, use the user's preferred shell
+            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+
+            if let Some(command) = command {
+                let mut cmd = CommandBuilder::new(&shell);
+                cmd.arg("-l");
+                cmd.arg("-c");
+                cmd.arg(command);
+                cmd
+            } else {
+                let mut cmd = CommandBuilder::new(&shell);
+                cmd.arg("-l");
+                cmd
+            }
         };
         cmd.cwd(cwd);
 
@@ -205,5 +224,26 @@ impl PtyManager {
             let _ = session.child.wait();
         }
         Ok(())
+    }
+}
+
+/// Check if an executable exists on the system PATH.
+fn which_exists(name: &str) -> bool {
+    if cfg!(target_os = "windows") {
+        std::process::Command::new("where")
+            .arg(name)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    } else {
+        std::process::Command::new("which")
+            .arg(name)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
     }
 }
