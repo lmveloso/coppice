@@ -283,24 +283,49 @@ export const useAppStore = create<AppState>((set, get) => ({
     const runners = s.runnersByWorktree[worktreeId] ?? {};
     const old = runners[key];
 
-    // Kill old PTY if it exists
-    if (old) {
+    if (old && old.status !== "idle") {
+      // Reuse same ID — kill old PTY, then respawn with same session ID.
+      // This avoids React removing/adding DOM nodes which crashes the reparenting.
       await commands.terminalKill(old.id).catch(() => {});
-    }
 
-    const runner: RunnerInfo = {
-      id: `runner-${key}-${worktreeId}-${Date.now()}`,
-      open: true,
-      status: "running",
-      command,
-      cwd,
-    };
-    set((s2) => ({
-      runnersByWorktree: {
-        ...s2.runnersByWorktree,
-        [worktreeId]: { ...(s2.runnersByWorktree[worktreeId] ?? {}), [key]: runner },
-      },
-    }));
+      // Mark as running, keep same ID
+      set((s2) => ({
+        runnersByWorktree: {
+          ...s2.runnersByWorktree,
+          [worktreeId]: {
+            ...(s2.runnersByWorktree[worktreeId] ?? {}),
+            [key]: { ...old, open: true, status: "running", command, cwd },
+          },
+        },
+      }));
+
+      // Respawn PTY with same session ID after a short delay
+      setTimeout(() => {
+        commands.terminalSpawn(old.id, cwd, command).catch(() => {});
+      }, 100);
+    } else {
+      // First run — create new entry
+      const id = old?.id ?? `runner-${key}-${worktreeId}-${Date.now()}`;
+
+      // Kill idle placeholder if it exists
+      if (old) {
+        await commands.terminalKill(old.id).catch(() => {});
+      }
+
+      const runner: RunnerInfo = {
+        id,
+        open: true,
+        status: "running",
+        command,
+        cwd,
+      };
+      set((s2) => ({
+        runnersByWorktree: {
+          ...s2.runnersByWorktree,
+          [worktreeId]: { ...(s2.runnersByWorktree[worktreeId] ?? {}), [key]: runner },
+        },
+      }));
+    }
   },
 
   toggleRunner: (worktreeId, key) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore, type RunnerStatus } from "../../stores/appStore";
+import * as commands from "../../lib/commands";
 
 export function SidebarRunners() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
@@ -11,7 +12,6 @@ export function SidebarRunners() {
   const expandRunner = useAppStore((s) => s.expandRunner);
   const openOrRestartRunner = useAppStore((s) => s.openOrRestartRunner);
   const toggleRunner = useAppStore((s) => s.toggleRunner);
-  const closeRunner = useAppStore((s) => s.closeRunner);
   const setRunnerStatus = useAppStore((s) => s.setRunnerStatus);
   const pendingRunner = useAppStore((s) => s.pendingRunner);
   const consumeRunner = useAppStore((s) => s.consumeRunner);
@@ -99,7 +99,10 @@ export function SidebarRunners() {
                 </button>
                 {runner && status === "running" && (
                   <button
-                    onClick={() => closeRunner(wtId, key)}
+                    onClick={async () => {
+                      await commands.terminalKill(runner.id).catch(() => {});
+                      setRunnerStatus(wtId, key, "stopped");
+                    }}
                     className="px-1.5 py-0.5 text-[10px] rounded bg-bg-hover text-error/70 hover:text-error hover:bg-bg-active transition-colors"
                   >
                     Stop
@@ -130,49 +133,59 @@ function RunnerSlot({ runnerId, expanded }: { runnerId: string | null; expanded:
   const currentChildId = useRef<string | null>(null);
 
   useEffect(() => {
-    const slot = slotRef.current;
-    if (!slot) return;
-    const pool = document.getElementById("runner-terminal-pool");
-    if (!pool) return;
+    try {
+      const slot = slotRef.current;
+      if (!slot) return;
+      const pool = document.getElementById("runner-terminal-pool");
+      if (!pool) return;
 
-    // Return previous child to pool
-    if (currentChildId.current && currentChildId.current !== runnerId) {
-      const prev = document.getElementById(`runner-term-${currentChildId.current}`);
-      if (prev && prev.parentElement === slot) {
-        pool.appendChild(prev);
+      // Return previous child to pool (if it still exists in the DOM)
+      if (currentChildId.current && currentChildId.current !== runnerId) {
+        const prev = document.getElementById(`runner-term-${currentChildId.current}`);
+        if (prev && prev.parentElement === slot) {
+          try { pool.appendChild(prev); } catch { /* node may have been removed by React */ }
+        }
+        currentChildId.current = null;
       }
-      currentChildId.current = null;
-    }
 
-    // Move new child into slot
-    if (runnerId && expanded) {
-      const termNode = document.getElementById(`runner-term-${runnerId}`);
-      if (termNode && termNode.parentElement !== slot) {
-        slot.appendChild(termNode);
-        currentChildId.current = runnerId;
+      // Move new child into slot — wait a frame for React to render the new terminal
+      if (runnerId && expanded) {
+        requestAnimationFrame(() => {
+          const termNode = document.getElementById(`runner-term-${runnerId}`);
+          if (termNode && slot.isConnected) {
+            try {
+              slot.appendChild(termNode);
+              currentChildId.current = runnerId;
+            } catch { /* ignore */ }
+          }
+        });
       }
-    }
 
-    // If collapsed, return child to pool
-    if (!expanded && currentChildId.current) {
-      const child = document.getElementById(`runner-term-${currentChildId.current}`);
-      if (child && child.parentElement === slot) {
-        pool.appendChild(child);
+      // If collapsed, return child to pool
+      if (!expanded && currentChildId.current) {
+        const child = document.getElementById(`runner-term-${currentChildId.current}`);
+        if (child && child.parentElement === slot) {
+          try { pool.appendChild(child); } catch { /* ignore */ }
+        }
+        currentChildId.current = null;
       }
-      currentChildId.current = null;
+    } catch {
+      // Defensive: never crash on DOM reparenting
     }
   }, [runnerId, expanded]);
 
   // Cleanup: return child to pool on unmount
   useEffect(() => {
     return () => {
-      const pool = document.getElementById("runner-terminal-pool");
-      if (pool && currentChildId.current) {
-        const child = document.getElementById(`runner-term-${currentChildId.current}`);
-        if (child) {
-          pool.appendChild(child);
+      try {
+        const pool = document.getElementById("runner-terminal-pool");
+        if (pool && currentChildId.current) {
+          const child = document.getElementById(`runner-term-${currentChildId.current}`);
+          if (child && child.parentElement !== pool) {
+            pool.appendChild(child);
+          }
         }
-      }
+      } catch { /* ignore */ }
     };
   }, []);
 

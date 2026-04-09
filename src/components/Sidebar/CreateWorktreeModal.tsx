@@ -46,14 +46,25 @@ export function CreateWorktreeModal({ projectId, onClose }: Props) {
     }
   };
 
-  const triggerSetupIfNeeded = () => {
+  const selectNewWorktreeAndSetup = () => {
     setTimeout(() => {
       const store = useAppStore.getState();
-      const proj = store.projects.find((p) => p.id === projectId);
-      if (proj && proj.setup_scripts.length > 0) {
-        store.requestRunner("setup");
+      // Find the new worktree by name
+      const wts = store.worktreesByProject[projectId] ?? [];
+      const newWt = wts.find((w) => w.name === worktreeName);
+      if (newWt) {
+        store.selectProject(projectId);
+        store.selectWorktree(newWt.id);
+
+        // Trigger setup after selecting
+        setTimeout(() => {
+          const proj = store.projects.find((p) => p.id === projectId);
+          if (proj && proj.setup_scripts.length > 0) {
+            store.requestRunner("setup");
+          }
+        }, 300);
       }
-    }, 500);
+    }, 200);
   };
 
   const handleCreate = async () => {
@@ -63,7 +74,7 @@ export function CreateWorktreeModal({ projectId, onClose }: Props) {
       setError(null);
       try {
         await createWorktree(projectId, selectedBranch, worktreeName);
-        triggerSetupIfNeeded();
+        selectNewWorktreeAndSetup();
         onClose();
       } catch (e) {
         setError(String(e));
@@ -81,7 +92,7 @@ export function CreateWorktreeModal({ projectId, onClose }: Props) {
           worktreeName
         );
         await useAppStore.getState().loadWorktrees(projectId);
-        triggerSetupIfNeeded();
+        selectNewWorktreeAndSetup();
         onClose();
       } catch (e) {
         setError(String(e));

@@ -37,7 +37,7 @@ fn get_project_path(db: &Database, project_id: &str) -> Result<String, String> {
         .ok_or_else(|| "Project not found".to_string())
 }
 
-fn get_github_remote(db: &Database, project_id: &str) -> Result<String, String> {
+fn _get_github_remote(db: &Database, project_id: &str) -> Result<String, String> {
     let projects = db.list_projects().map_err(|e| e.to_string())?;
     projects
         .iter()
@@ -184,7 +184,7 @@ pub fn get_failed_action_logs(
     let cwd = get_project_path(&db, &project_id)?;
 
     // Get the failed run ID
-    let runs_output = Command::new("gh")
+    let _runs_output = Command::new("gh")
         .args([
             "run", "list",
             "--branch", &format!("$(gh pr view {} --json headRefName -q .headRefName)", pr_number),
