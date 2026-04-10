@@ -2,10 +2,34 @@ use std::process::Command;
 
 #[tauri::command]
 pub async fn open_in_vscode(path: String) -> Result<(), String> {
-    Command::new("code")
-        .arg(&path)
-        .spawn()
-        .map_err(|e| format!("Failed to open VS Code: {}", e))?;
+    #[cfg(target_os = "macos")]
+    {
+        // Use macOS Launch Services via `open` — this works regardless of
+        // the user's $PATH, which is not inherited when the app is launched
+        // from Finder / Dock.
+        Command::new("open")
+            .args(["-a", "Visual Studio Code", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open VS Code: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("code")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open VS Code: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Use `cmd /c code` so Windows finds `code.cmd` on PATH.
+        Command::new("cmd")
+            .args(["/c", "code", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open VS Code: {}", e))?;
+    }
+
     Ok(())
 }
 
