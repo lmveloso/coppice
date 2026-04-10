@@ -90,7 +90,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedProjectId: null,
   selectedWorktreeId: null,
   editingProject: null,
-  sidebarWidth: 260,
+  sidebarWidth: 310,
   pendingClaudeCommand: null,
   pendingRunner: null,
   deletingWorktreeIds: new Set(),

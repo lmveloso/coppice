@@ -402,6 +402,99 @@ pub async fn get_unpushed_count(path: String) -> Result<u32, String> {
     Ok(count)
 }
 
+/// Fetch and fast-forward a base branch from origin
+#[tauri::command]
+pub async fn update_base_branch(db: State<'_, Database>, project_id: String, branch: String) -> Result<(), String> {
+    let project = find_project(&db, &project_id)?;
+
+    // Fetch the latest from origin for this branch
+    let fetch = user_command("git")
+        .args(["fetch", "origin", &branch])
+        .current_dir(&project.local_path)
+        .output()
+        .map_err(|e| format!("Failed to fetch: {}", e))?;
+
+    if !fetch.status.success() {
+        let stderr = String::from_utf8_lossy(&fetch.stderr);
+        return Err(format!("git fetch failed: {}", stderr));
+    }
+
+    // Check what branch is currently checked out in the main repo
+    let head = user_command("git")
+        .args(["symbolic-ref", "--short", "HEAD"])
+        .current_dir(&project.local_path)
+        .output()
+        .ok();
+
+    let current_branch = head
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    if current_branch == branch {
+        // Branch is checked out in main repo — fast-forward merge
+        let merge = user_command("git")
+            .args(["merge", "--ff-only", &format!("origin/{}", branch)])
+            .current_dir(&project.local_path)
+            .output()
+            .map_err(|e| format!("Failed to merge: {}", e))?;
+
+        if !merge.status.success() {
+            let stderr = String::from_utf8_lossy(&merge.stderr);
+            return Err(format!("Cannot fast-forward {}: {}", branch, stderr));
+        }
+    } else {
+        // Branch is not checked out — update the ref directly
+        let update = user_command("git")
+            .args(["branch", "-f", &branch, &format!("origin/{}", branch)])
+            .current_dir(&project.local_path)
+            .output()
+            .map_err(|e| format!("Failed to update branch: {}", e))?;
+
+        if !update.status.success() {
+            let stderr = String::from_utf8_lossy(&update.stderr);
+            return Err(format!("Failed to update {}: {}", branch, stderr));
+        }
+    }
+
+    Ok(())
+}
+
+/// Revert a single file's uncommitted changes
+#[tauri::command]
+pub fn revert_file(path: String, file: String, status: String) -> Result<(), String> {
+    if status == "??" {
+        // Untracked file — just delete it
+        let file_path = std::path::Path::new(&path).join(&file);
+        if file_path.is_dir() {
+            std::fs::remove_dir_all(&file_path)
+                .map_err(|e| format!("Failed to remove directory: {}", e))?;
+        } else if file_path.exists() {
+            std::fs::remove_file(&file_path)
+                .map_err(|e| format!("Failed to remove file: {}", e))?;
+        }
+    } else {
+        // Tracked file — unstage first, then restore from HEAD
+        let _ = user_command("git")
+            .args(["reset", "HEAD", "--", &file])
+            .current_dir(&path)
+            .output();
+
+        let output = user_command("git")
+            .args(["checkout", "HEAD", "--", &file])
+            .current_dir(&path)
+            .output()
+            .map_err(|e| format!("Failed to revert file: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("git checkout failed: {}", stderr));
+        }
+    }
+
+    Ok(())
+}
+
 fn find_project(db: &Database, project_id: &str) -> Result<Project, String> {
     let projects = db.list_projects().map_err(|e| e.to_string())?;
     projects

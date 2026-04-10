@@ -228,7 +228,7 @@ export const PRPanel = memo(function PRPanel({ projectId, branch, worktreePath, 
           <div className="flex items-center gap-3">
             <button
               onClick={onCreatePrWithClaude}
-              className="px-2 py-0.5 text-[11px] rounded bg-accent text-white hover:brightness-110 transition-all"
+              className="px-1.5 py-0.5 text-[10px] rounded bg-bg-hover text-text-secondary hover:text-text-primary hover:bg-bg-active transition-colors"
             >
               Create PR with Claude
             </button>

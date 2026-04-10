@@ -85,6 +85,8 @@ export function CreateWorktreeModal({ projectId, onClose }: Props) {
       setCreating(true);
       setError(null);
       try {
+        // Update the base branch from origin before creating, so the new branch starts fresh
+        await commands.updateBaseBranch(projectId, selectedBranch).catch(() => {});
         await commands.createWorktreeNewBranch(
           projectId,
           selectedBranch,

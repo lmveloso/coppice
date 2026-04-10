@@ -101,6 +101,7 @@ export function WorktreeView() {
         </h2>
         <span className="text-xs text-text-tertiary font-mono">{liveBranch ?? worktree.branch}</span>
         <TargetBranchPicker
+          projectId={project.id}
           currentTarget={worktree.target_branch || project.base_branch}
           onChange={(branch) => {
             const value = branch === project.base_branch ? null : branch;
@@ -144,8 +145,14 @@ export function WorktreeView() {
             onClick={() => addTab(wtId, "claude", worktree.path, "claude")}
             title="New Claude session"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="6" width="12" height="8" rx="2" />
+              <line x1="8" y1="3" x2="8" y2="6" />
+              <circle cx="8" cy="2.5" r="1.2" />
+              <circle cx="5.5" cy="10" r="1" fill="currentColor" stroke="none" />
+              <circle cx="10.5" cy="10" r="1" fill="currentColor" stroke="none" />
+              <line x1="0.5" y1="9" x2="2" y2="9" />
+              <line x1="14" y1="9" x2="15.5" y2="9" />
             </svg>
           </button>
         </div>
@@ -273,19 +280,39 @@ function ActionButton({
 }
 
 function TargetBranchPicker({
+  projectId,
   currentTarget,
   onChange,
 }: {
+  projectId: string;
   currentTarget: string;
   onChange: (branch: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentTarget);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<"success" | "error" | null>(null);
+
+  const handleSync = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (syncing) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      await commands.updateBaseBranch(projectId, currentTarget);
+      setSyncResult("success");
+    } catch {
+      setSyncResult("error");
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncResult(null), 2000);
+    }
+  };
 
   if (editing) {
     return (
       <div className="flex items-center gap-1">
-        <span className="text-[10px] text-text-tertiary">→</span>
+        <span className="text-[10px] text-text-tertiary">&rarr;</span>
         <input
           className="px-1.5 py-0.5 text-[11px] bg-bg-tertiary border border-accent rounded text-text-primary font-mono focus:outline-none w-24"
           value={value}
@@ -314,16 +341,52 @@ function TargetBranchPicker({
   }
 
   return (
-    <button
-      className="flex items-center gap-1 text-[10px] text-text-tertiary hover:text-text-secondary transition-colors"
-      onClick={() => {
-        setValue(currentTarget);
-        setEditing(true);
-      }}
-      title="Target branch for PR comparisons (click to change)"
-    >
-      <span>→</span>
-      <span className="font-mono">{currentTarget}</span>
-    </button>
+    <div className="flex items-center gap-0.5">
+      <button
+        className="flex items-center gap-1 text-[10px] text-text-tertiary hover:text-text-secondary transition-colors"
+        onClick={() => {
+          setValue(currentTarget);
+          setEditing(true);
+        }}
+        title="Target branch for PR comparisons (click to change)"
+      >
+        <span>&rarr;</span>
+        <span className="font-mono">{currentTarget}</span>
+      </button>
+      <button
+        className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+          syncResult === "success"
+            ? "text-success"
+            : syncResult === "error"
+            ? "text-error"
+            : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
+        }`}
+        onClick={handleSync}
+        disabled={syncing}
+        title={`Fetch ${currentTarget} from origin`}
+      >
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 16 16"
+          fill="none"
+          className={syncing ? "animate-spin" : ""}
+        >
+          <path
+            d="M14 8A6 6 0 1 1 8 2"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          <path
+            d="M8 0l3 2-3 2"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
   );
 }

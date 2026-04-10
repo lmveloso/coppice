@@ -38,6 +38,8 @@ pub fn run() {
             commands::worktree::get_pr_diff_files,
             commands::worktree::get_pr_file_diff,
             commands::worktree::get_unpushed_count,
+            commands::worktree::revert_file,
+            commands::worktree::update_base_branch,
             // Terminal commands
             commands::terminal::terminal_spawn,
             commands::terminal::terminal_write,
