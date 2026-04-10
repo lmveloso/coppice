@@ -88,6 +88,20 @@ Coppice lets you work across multiple Git worktrees simultaneously, each with it
 └── .github/workflows/build.yml   # Multi-platform CI
 ```
 
+## Installation
+
+Download the latest build from [GitHub Actions](https://github.com/iamfozzy/coppice/actions) artifacts or [Releases](https://github.com/iamfozzy/coppice/releases).
+
+### macOS — "App is damaged" fix
+
+Since the app is not code-signed, macOS quarantines downloaded apps. After extracting, run:
+
+```sh
+xattr -cr /Applications/Coppice.app
+```
+
+Then open Coppice normally. You only need to do this once.
+
 ## Prerequisites
 
 - **Node.js** 20+
