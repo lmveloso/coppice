@@ -5,6 +5,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import * as commands from "../../lib/commands";
 import "@xterm/xterm/css/xterm.css";
 
@@ -79,7 +80,7 @@ export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, keepAliv
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon((_event, uri) => {
-      window.open(uri, "_blank");
+      shellOpen(uri);
     }));
 
     term.open(container);
