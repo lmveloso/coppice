@@ -17,6 +17,7 @@ const emptyForm: ProjectFormData = {
 };
 
 export function ProjectSettingsModal() {
+  const appSettings = useAppStore((s) => s.appSettings);
   const editingProject = useAppStore((s) => s.editingProject);
   const projects = useAppStore((s) => s.projects);
   const closeProjectSettings = useAppStore((s) => s.closeProjectSettings);
@@ -180,13 +181,13 @@ export function ProjectSettingsModal() {
             label="Claude command"
             value={form.claude_command}
             onChange={(claude_command) => setForm({ ...form, claude_command })}
-            placeholder="claude"
+            placeholder={appSettings?.claude_command || "claude"}
           />
           <TextAreaField
             label="PR create skill (custom Claude command for creating PRs)"
             value={form.pr_create_skill}
             onChange={(pr_create_skill) => setForm({ ...form, pr_create_skill })}
-            placeholder={`${form.claude_command || "claude"} "Review changes and create a PR with /commit"`}
+            placeholder={`${form.claude_command || appSettings?.claude_command || "claude"} "Review changes and create a PR with /commit"`}
             rows={2}
           />
         </div>

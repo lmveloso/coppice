@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Project, Worktree } from "../lib/types";
+import type { Project, Worktree, AppSettings } from "../lib/types";
 import * as commands from "../lib/commands";
 
 // ── Session types ──
@@ -30,6 +30,7 @@ interface AppState {
   // Data
   projects: Project[];
   worktreesByProject: Record<string, Worktree[]>;
+  appSettings: AppSettings | null;
 
   // UI state
   selectedProjectId: string | null;
@@ -44,6 +45,10 @@ interface AppState {
   tabsByWorktree: Record<string, TabInfo[]>;
   activeTabByWorktree: Record<string, string | null>;
   runnersByWorktree: Record<string, Record<string, RunnerInfo>>;
+
+  // Actions — settings
+  loadSettings: () => Promise<void>;
+  saveSettings: (settings: AppSettings) => Promise<void>;
 
   // Actions — general
   loadProjects: () => Promise<void>;
@@ -67,6 +72,11 @@ interface AppState {
   setWorktreeTargetBranch: (id: string, projectId: string, targetBranch: string | null) => Promise<void>;
   deleteWorktree: (id: string, projectId: string) => Promise<void>;
 
+  // Actions — app settings modal
+  editingAppSettings: boolean;
+  openAppSettings: () => void;
+  closeAppSettings: () => void;
+
   // Actions — tabs
   addTab: (worktreeId: string, type: "terminal" | "claude", cwd: string, command?: string) => void;
   openDiffTab: (worktreeId: string, file: string, cwd: string, mode: "uncommitted" | "pr", baseBranch?: string) => void;
@@ -87,6 +97,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [],
   worktreesByProject: {},
+  appSettings: null,
   selectedProjectId: null,
   selectedWorktreeId: null,
   editingProject: null,
@@ -97,6 +108,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   tabsByWorktree: {},
   activeTabByWorktree: {},
   runnersByWorktree: {},
+  editingAppSettings: false,
+
+  // ── Settings ──
+
+  loadSettings: async () => {
+    const settings = await commands.getSettings();
+    set({ appSettings: settings });
+  },
+
+  saveSettings: async (settings) => {
+    await commands.updateSettings(settings);
+    set({ appSettings: settings });
+  },
+
+  openAppSettings: () => set({ editingAppSettings: true }),
+  closeAppSettings: () => set({ editingAppSettings: false }),
 
   // ── General ──
 

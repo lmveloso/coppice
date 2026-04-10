@@ -14,6 +14,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
   const projects = useAppStore((s) => s.projects);
   const requestClaudeTab = useAppStore((s) => s.requestClaudeTab);
   const openDiffTab = useAppStore((s) => s.openDiffTab);
+  const appSettings = useAppStore((s) => s.appSettings);
 
   const project = projects.find((p) => p.id === selectedProjectId);
   const worktrees = selectedProjectId
@@ -112,7 +113,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
   if (!worktree || !project) return null;
 
   const baseBranch = baseBranchRef.current;
-  const claudeCmd = project.claude_command || "claude";
+  const claudeCmd = project.claude_command || appSettings?.claude_command || "claude";
   const hasLocalChanges = uncommittedFiles.length > 0 || unpushedCount > 0;
 
   const handleRevert = async (file: string, status: string) => {

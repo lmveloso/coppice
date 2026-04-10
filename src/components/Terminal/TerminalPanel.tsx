@@ -13,10 +13,11 @@ interface Props {
   cwd: string;
   command?: string;
   fontSize?: number;
+  fontFamily?: string;
   keepAlive?: boolean;
 }
 
-export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, keepAlive = false }: Props) {
+export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, fontFamily, keepAlive = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termInstanceRef = useRef<Terminal | null>(null);
 
@@ -62,7 +63,9 @@ export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, keepAliv
         brightCyan: "#22d3ee",
         brightWhite: "#fafafa",
       },
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', 'DejaVu Sans Mono', monospace",
+      fontFamily: fontFamily
+        ? `'${fontFamily}', 'JetBrains Mono', monospace`
+        : "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', 'DejaVu Sans Mono', monospace",
       fontSize,
       lineHeight: 1.2,
       cursorBlink: true,
@@ -147,7 +150,8 @@ export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, keepAliv
     // Wait for bundled JetBrains Mono to load before opening the terminal
     // so xterm.js measures character cell widths with the correct font.
     const init = async () => {
-      await document.fonts.load(`${fontSize}px 'JetBrains Mono'`).catch(() => {});
+      const preloadFont = fontFamily || 'JetBrains Mono';
+      await document.fonts.load(`${fontSize}px '${preloadFont}'`).catch(() => {});
       if (aborted) return;
 
       term.open(container);
@@ -185,7 +189,7 @@ export function TerminalPanel({ sessionId, cwd, command, fontSize = 13, keepAliv
       termInstanceRef.current = null;
       term.dispose();
     };
-  }, [sessionId, cwd, command]);
+  }, [sessionId, cwd, command, fontFamily, fontSize]);
 
 
   return (

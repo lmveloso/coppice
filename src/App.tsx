@@ -3,12 +3,16 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { WorktreeView } from "./components/WorktreeView/WorktreeView";
 import { ProjectSettingsModal } from "./components/ProjectSettings/ProjectSettingsModal";
+import { AppSettingsModal } from "./components/AppSettings/AppSettingsModal";
 import { TerminalPanel } from "./components/Terminal/TerminalPanel";
 import { useAppStore } from "./stores/appStore";
 import * as commands from "./lib/commands";
 
 function App() {
   const editingProject = useAppStore((s) => s.editingProject);
+  const editingAppSettings = useAppStore((s) => s.editingAppSettings);
+  const appSettings = useAppStore((s) => s.appSettings);
+  const loadSettings = useAppStore((s) => s.loadSettings);
   const selectedWorktreeId = useAppStore((s) => s.selectedWorktreeId);
   const tabsByWorktree = useAppStore((s) => s.tabsByWorktree);
   const activeTabByWorktree = useAppStore((s) => s.activeTabByWorktree);
@@ -44,6 +48,21 @@ function App() {
     return result;
   }, [runnersByWorktree]);
 
+  // Load app settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  // Apply window decorations setting
+  useEffect(() => {
+    if (appSettings !== null) {
+      getCurrentWindow().setDecorations(appSettings.window_decorations).catch(() => {});
+    }
+  }, [appSettings?.window_decorations]);
+
+  const termFontFamily = appSettings?.terminal_font_family || undefined;
+  const termFontSize = appSettings?.terminal_font_size || undefined;
+
   // Single window-level file drop handler — routes to active session only
   useEffect(() => {
     const unlisten = getCurrentWindow().onDragDropEvent((event) => {
@@ -77,7 +96,7 @@ function App() {
                 pointerEvents: t.visible ? "auto" : "none",
               }}
             >
-              <TerminalPanel sessionId={t.id} cwd={t.cwd} command={t.command} keepAlive />
+              <TerminalPanel sessionId={t.id} cwd={t.cwd} command={t.command} fontSize={termFontSize} fontFamily={termFontFamily} keepAlive />
             </div>
           ))}
         </div>
@@ -87,12 +106,13 @@ function App() {
       <div id="runner-terminal-pool" style={{ position: "fixed", left: -9999, top: -9999, width: 400, height: 9999 }}>
         {allRunners.map((r) => (
           <div key={r.id} id={`runner-term-${r.id}`} style={{ width: "100%", height: 150 }}>
-            <TerminalPanel sessionId={r.id} cwd={r.cwd} command={r.command} fontSize={10} keepAlive />
+            <TerminalPanel sessionId={r.id} cwd={r.cwd} command={r.command} fontSize={termFontSize ? Math.max(8, termFontSize - 3) : 10} fontFamily={termFontFamily} keepAlive />
           </div>
         ))}
       </div>
 
       {editingProject !== null && <ProjectSettingsModal />}
+      {editingAppSettings && <AppSettingsModal />}
     </div>
   );
 }

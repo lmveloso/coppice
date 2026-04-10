@@ -30,6 +30,7 @@ impl PtyManager {
         rows: u16,
         cols: u16,
         app_handle: &AppHandle,
+        shell_override: Option<&str>,
     ) -> Result<(), String> {
         let pty_system = native_pty_system();
 
@@ -73,7 +74,9 @@ impl PtyManager {
             }
         } else {
             // On macOS/Linux, use the user's preferred shell
-            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+            let shell = shell_override
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()));
 
             if let Some(command) = command {
                 let mut cmd = CommandBuilder::new(&shell);

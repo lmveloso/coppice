@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Project, ProjectFormData, Worktree } from "./types";
+import type { Project, ProjectFormData, Worktree, AppSettings } from "./types";
 
 // Project commands
 export async function listProjects(): Promise<Project[]> {
@@ -114,10 +114,22 @@ export async function updateBaseBranch(projectId: string, branch: string): Promi
   return invoke("update_base_branch", { projectId, branch });
 }
 
-// External tool commands
-export async function openInVscode(path: string): Promise<void> {
-  return invoke("open_in_vscode", { path });
+// Settings commands
+export async function getSettings(): Promise<AppSettings> {
+  return invoke("get_settings");
 }
+
+export async function updateSettings(settings: AppSettings): Promise<AppSettings> {
+  return invoke("update_settings", { settings });
+}
+
+// External tool commands
+export async function openInEditor(path: string): Promise<void> {
+  return invoke("open_in_editor", { path });
+}
+
+/** @deprecated Use openInEditor */
+export const openInVscode = openInEditor;
 
 export async function openInTerminal(path: string): Promise<void> {
   return invoke("open_in_terminal", { path });

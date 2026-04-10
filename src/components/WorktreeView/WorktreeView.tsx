@@ -17,8 +17,9 @@ export function WorktreeView() {
   const pendingClaudeCommand = useAppStore((s) => s.pendingClaudeCommand);
   const consumeClaudeCommand = useAppStore((s) => s.consumeClaudeCommand);
 
+  const appSettings = useAppStore((s) => s.appSettings);
   const project = projects.find((p) => p.id === selectedProjectId);
-  const claudeCmd = project?.claude_command || "claude";
+  const claudeCmd = project?.claude_command || appSettings?.claude_command || "claude";
   const worktrees = selectedProjectId
     ? worktreesByProject[selectedProjectId] ?? []
     : [];
@@ -111,7 +112,7 @@ export function WorktreeView() {
         />
 
         <div className="ml-auto flex items-center gap-1.5">
-          <ActionButton title="Open in VS Code" icon="vscode" onClick={() => commands.openInVscode(worktree.path)} />
+          <ActionButton title="Open in editor" icon="vscode" onClick={() => commands.openInEditor(worktree.path)} />
           <ActionButton title="Open terminal" icon="terminal" onClick={() => commands.openInTerminal(worktree.path)} />
           <ActionButton title="Open in Finder" icon="finder" onClick={() => commands.openInFinder(worktree.path)} tooltipAlign="right" />
         </div>
