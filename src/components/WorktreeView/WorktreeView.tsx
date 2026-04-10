@@ -59,6 +59,19 @@ export function WorktreeView() {
     }
   }, [pendingClaudeCommand, worktree, consumeClaudeCommand, addTab]);
 
+  // Auto-create a Claude tab if worktree has no tabs, after a short delay
+  useEffect(() => {
+    if (!worktree || tabs.length > 0) return;
+    const timer = setTimeout(() => {
+      // Re-check in case tabs were added during the delay
+      const currentTabs = useAppStore.getState().tabsByWorktree[worktree.id];
+      if (!currentTabs || currentTabs.length === 0) {
+        addTab(worktree.id, "claude", worktree.path, "claude");
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [worktree?.id, tabs.length === 0]);
+
   if (!worktree || !project) {
     return (
       <div className="flex-1 flex items-center justify-center">
