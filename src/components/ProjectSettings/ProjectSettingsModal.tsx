@@ -13,6 +13,7 @@ const emptyForm: ProjectFormData = {
   run_command: "",
   env_files: [],
   pr_create_skill: "",
+  claude_command: "",
 };
 
 export function ProjectSettingsModal() {
@@ -45,6 +46,7 @@ export function ProjectSettingsModal() {
         run_command: existingProject.run_command,
         env_files: existingProject.env_files,
         pr_create_skill: existingProject.pr_create_skill || "",
+        claude_command: existingProject.claude_command || "",
       });
       setSetupScriptsText(existingProject.setup_scripts.join("\n"));
       setEnvFilesText(existingProject.env_files.join("\n"));
@@ -174,11 +176,17 @@ export function ProjectSettingsModal() {
             placeholder={".env\n.env.local"}
             rows={2}
           />
+          <Field
+            label="Claude command"
+            value={form.claude_command}
+            onChange={(claude_command) => setForm({ ...form, claude_command })}
+            placeholder="claude"
+          />
           <TextAreaField
             label="PR create skill (custom Claude command for creating PRs)"
             value={form.pr_create_skill}
             onChange={(pr_create_skill) => setForm({ ...form, pr_create_skill })}
-            placeholder={'claude "Review changes and create a PR with /commit"'}
+            placeholder={`${form.claude_command || "claude"} "Review changes and create a PR with /commit"`}
             rows={2}
           />
         </div>

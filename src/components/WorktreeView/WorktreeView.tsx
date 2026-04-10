@@ -18,6 +18,7 @@ export function WorktreeView() {
   const consumeClaudeCommand = useAppStore((s) => s.consumeClaudeCommand);
 
   const project = projects.find((p) => p.id === selectedProjectId);
+  const claudeCmd = project?.claude_command || "claude";
   const worktrees = selectedProjectId
     ? worktreesByProject[selectedProjectId] ?? []
     : [];
@@ -66,7 +67,7 @@ export function WorktreeView() {
       // Re-check in case tabs were added during the delay
       const currentTabs = useAppStore.getState().tabsByWorktree[worktree.id];
       if (!currentTabs || currentTabs.length === 0) {
-        addTab(worktree.id, "claude", worktree.path, "claude");
+        addTab(worktree.id, "claude", worktree.path, claudeCmd);
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -142,7 +143,7 @@ export function WorktreeView() {
           </button>
           <button
             className="flex items-center justify-center w-10 h-full text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors outline-none"
-            onClick={() => addTab(wtId, "claude", worktree.path, "claude")}
+            onClick={() => addTab(wtId, "claude", worktree.path, claudeCmd)}
             title="New Claude session"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">

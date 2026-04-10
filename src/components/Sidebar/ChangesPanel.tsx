@@ -112,6 +112,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
   if (!worktree || !project) return null;
 
   const baseBranch = baseBranchRef.current;
+  const claudeCmd = project.claude_command || "claude";
   const hasLocalChanges = uncommittedFiles.length > 0 || unpushedCount > 0;
 
   const handleRevert = async (file: string, status: string) => {
@@ -140,11 +141,11 @@ export const ChangesPanel = memo(function ChangesPanel() {
   const handlePush = () => {
     if (uncommittedFiles.length > 0) {
       requestClaudeTab(
-        `claude "Commit all the changes in this worktree with a clear, descriptive commit message, then push to origin."`
+        `${claudeCmd} "Commit all the changes in this worktree with a clear, descriptive commit message, then push to origin."`
       );
     } else {
       requestClaudeTab(
-        `claude "Push the current branch to origin."`
+        `${claudeCmd} "Push the current branch to origin."`
       );
     }
   };
@@ -197,7 +198,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
             worktreePath={worktree.path}
             onFixWithClaude={(context) => {
               requestClaudeTab(
-                `claude "The CI checks have failed. Here are the logs:\n\n${context
+                `${claudeCmd} "The CI checks have failed. Here are the logs:\n\n${context
                   .replace(/"/g, '\\"')
                   .substring(0, 5000)}\n\nPlease analyze and fix the failures."`
               );
@@ -207,7 +208,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
                 requestClaudeTab(project.pr_create_skill);
               } else {
                 requestClaudeTab(
-                  `claude "Please look at the changes on this branch compared to the ${baseBranch} branch (the target branch). Push the branch to origin if needed, then create a well-written pull request targeting the ${baseBranch} branch, with a clear title and description summarizing the changes. Use: gh pr create --base ${baseBranch}"`
+                  `${claudeCmd} "Please look at the changes on this branch compared to the ${baseBranch} branch (the target branch). Push the branch to origin if needed, then create a well-written pull request targeting the ${baseBranch} branch, with a clear title and description summarizing the changes. Use: gh pr create --base ${baseBranch}"`
                 );
               }
             }}
