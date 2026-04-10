@@ -11,6 +11,7 @@ export function Sidebar() {
   const loadProjects = useAppStore((s) => s.loadProjects);
 
   const isResizing = useRef(false);
+  const sidebarRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     loadProjects();
@@ -24,15 +25,19 @@ export function Sidebar() {
     const onMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
       const width = Math.max(310, Math.min(500, e.clientX));
-      setSidebarWidth(width);
+      if (sidebarRef.current) {
+        sidebarRef.current.style.width = `${width}px`;
+      }
     };
 
-    const onMouseUp = () => {
+    const onMouseUp = (e: MouseEvent) => {
       isResizing.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
+      const finalWidth = Math.max(310, Math.min(500, e.clientX));
+      setSidebarWidth(finalWidth);
     };
 
     document.addEventListener("mousemove", onMouseMove);
@@ -41,6 +46,7 @@ export function Sidebar() {
 
   return (
     <aside
+      ref={sidebarRef}
       className="flex flex-col bg-bg-secondary border-r border-border-primary h-full relative no-select"
       style={{ width: sidebarWidth }}
     >
@@ -81,7 +87,7 @@ export function Sidebar() {
 
       {/* Resize handle */}
       <div
-        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
+        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent/30 active:bg-accent/50"
         onMouseDown={onMouseDown}
       />
     </aside>
