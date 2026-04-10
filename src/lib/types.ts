@@ -47,3 +47,13 @@ export interface TerminalSession {
 }
 
 export type ProjectFormData = Omit<Project, "id" | "created_at">;
+
+export interface AppSettings {
+  editor_command: string;
+  claude_command: string;
+  terminal_font_family: string;
+  terminal_font_size: number;
+  terminal_emulator: string;
+  shell: string;
+  window_decorations: boolean;
+}

@@ -1,9 +1,11 @@
 use tauri::{AppHandle, State};
 use crate::services::pty_manager::PtyManager;
+use crate::settings::SettingsState;
 
 #[tauri::command]
 pub fn terminal_spawn(
     pty: State<'_, PtyManager>,
+    settings: State<'_, SettingsState>,
     app: AppHandle,
     session_id: String,
     cwd: String,
@@ -11,7 +13,19 @@ pub fn terminal_spawn(
     rows: Option<u16>,
     cols: Option<u16>,
 ) -> Result<(), String> {
-    pty.spawn(&session_id, &cwd, command.as_deref(), rows.unwrap_or(24), cols.unwrap_or(80), &app)
+    let shell_override = {
+        let s = settings.0.lock().unwrap();
+        if s.shell.is_empty() { None } else { Some(s.shell.clone()) }
+    };
+    pty.spawn(
+        &session_id,
+        &cwd,
+        command.as_deref(),
+        rows.unwrap_or(24),
+        cols.unwrap_or(80),
+        &app,
+        shell_override.as_deref(),
+    )
 }
 
 #[tauri::command]
