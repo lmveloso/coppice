@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo, useDeferredValue } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useAppStore } from "../../stores/appStore";
 import { PRPanel } from "../PRStatus/PRPanel";
 import * as commands from "../../lib/commands";
@@ -22,9 +22,22 @@ export const ChangesPanel = memo(function ChangesPanel() {
 
   const [tab, setTab] = useState<Tab>("uncommitted");
 
-  // Defer the worktree ID so heavy content (PR panel) renders after the UI updates
-  const deferredWtId = useDeferredValue(worktree?.id);
-  const isStale = deferredWtId !== worktree?.id;
+  // Delay content rendering after worktree switch to prevent UI blocking
+  const [contentReady, setContentReady] = useState(false);
+  const prevWtId = useRef(worktree?.id);
+  useEffect(() => {
+    if (worktree?.id !== prevWtId.current) {
+      prevWtId.current = worktree?.id;
+      setContentReady(false);
+      const raf = requestAnimationFrame(() => {
+        setContentReady(true);
+      });
+      return () => cancelAnimationFrame(raf);
+    } else {
+      setContentReady(true);
+    }
+  }, [worktree?.id]);
+
   const [uncommittedFiles, setUncommittedFiles] = useState<GitFileStatus[]>([]);
   const [prFiles, setPrFiles] = useState<GitFileStatus[]>([]);
   const [loadingUncommitted, setLoadingUncommitted] = useState(false);
@@ -99,7 +112,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0" style={{ opacity: isStale ? 0.5 : 1, transition: "opacity 100ms" }}>
+      <div className="flex-1 overflow-y-auto min-h-0">
         {tab === "uncommitted" && (
           <FileList
             files={uncommittedFiles}
@@ -116,7 +129,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
             onFileClick={(f) => openDiffTab(worktree.id, f, worktree.path, "pr", baseBranch)}
           />
         )}
-        {tab === "pr-status" && (
+        {tab === "pr-status" && contentReady && (
           <PRPanel
             projectId={project.id}
             branch={worktree.branch}

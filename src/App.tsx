@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { WorktreeView } from "./components/WorktreeView/WorktreeView";
 import { ProjectSettingsModal } from "./components/ProjectSettings/ProjectSettingsModal";
@@ -11,31 +12,35 @@ function App() {
   const activeTabByWorktree = useAppStore((s) => s.activeTabByWorktree);
   const runnersByWorktree = useAppStore((s) => s.runnersByWorktree);
 
-  // Collect ALL terminal/claude tabs (not diff — those render in WorktreeView)
-  const terminalTabs: Array<{ id: string; cwd: string; command?: string; visible: boolean }> = [];
-
-  for (const [wtId, tabs] of Object.entries(tabsByWorktree)) {
-    const activeTab = activeTabByWorktree[wtId];
-    for (const tab of tabs) {
-      if (tab.type === "diff") continue;
-      terminalTabs.push({
-        id: tab.id,
-        cwd: tab.cwd,
-        command: tab.command,
-        visible: wtId === selectedWorktreeId && tab.id === activeTab,
-      });
+  // Memoize terminal tab list — only recompute when tabs/active/selection change
+  const terminalTabs = useMemo(() => {
+    const result: Array<{ id: string; cwd: string; command?: string; visible: boolean }> = [];
+    for (const [wtId, tabs] of Object.entries(tabsByWorktree)) {
+      const activeTab = activeTabByWorktree[wtId];
+      for (const tab of tabs) {
+        if (tab.type === "diff") continue;
+        result.push({
+          id: tab.id,
+          cwd: tab.cwd,
+          command: tab.command,
+          visible: wtId === selectedWorktreeId && tab.id === activeTab,
+        });
+      }
     }
-  }
+    return result;
+  }, [tabsByWorktree, activeTabByWorktree, selectedWorktreeId]);
 
-  // Collect ALL runner terminals
-  const allRunners: Array<{ id: string; cwd: string; command: string }> = [];
-  for (const [, runners] of Object.entries(runnersByWorktree)) {
-    for (const [, runner] of Object.entries(runners)) {
-      // Skip idle runners (panel open but not yet started)
-      if (runner.status === "idle") continue;
-      allRunners.push({ id: runner.id, cwd: runner.cwd, command: runner.command });
+  // Memoize runner list
+  const allRunners = useMemo(() => {
+    const result: Array<{ id: string; cwd: string; command: string }> = [];
+    for (const [, runners] of Object.entries(runnersByWorktree)) {
+      for (const [, runner] of Object.entries(runners)) {
+        if (runner.status === "idle") continue;
+        result.push({ id: runner.id, cwd: runner.cwd, command: runner.command });
+      }
     }
-  }
+    return result;
+  }, [runnersByWorktree]);
 
   return (
     <div className="flex h-full">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, startTransition } from "react";
 import { useAppStore } from "../../stores/appStore";
 import { CreateWorktreeModal } from "./CreateWorktreeModal";
 import type { Project, Worktree } from "../../lib/types";
@@ -36,8 +36,10 @@ export function ProjectTree() {
           worktrees={worktreesByProject[project.id] ?? []}
           selectedWorktreeId={selectedWorktreeId}
           onSelectWorktree={(wt) => {
-            selectProject(project.id);
-            selectWorktree(wt.id);
+            startTransition(() => {
+              selectProject(project.id);
+              selectWorktree(wt.id);
+            });
           }}
           deletingIds={deletingWorktreeIds}
           runnersByWorktree={runnersByWorktree}

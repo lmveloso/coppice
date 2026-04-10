@@ -47,7 +47,7 @@ fn _get_github_remote(db: &Database, project_id: &str) -> Result<String, String>
 }
 
 #[tauri::command]
-pub fn get_pr_for_branch(
+pub async fn get_pr_for_branch(
     db: State<'_, Database>,
     project_id: String,
     branch: String,
@@ -119,7 +119,7 @@ fn get_check_runs(cwd: &str, pr_number: i64) -> Result<Vec<CheckRun>, String> {
 }
 
 #[tauri::command]
-pub fn create_pr(
+pub async fn create_pr(
     db: State<'_, Database>,
     project_id: String,
     worktree_path: String,
@@ -176,7 +176,7 @@ pub fn create_pr(
 }
 
 #[tauri::command]
-pub fn get_failed_action_logs(
+pub async fn get_failed_action_logs(
     db: State<'_, Database>,
     project_id: String,
     pr_number: i64,
@@ -266,7 +266,7 @@ pub struct PrComment {
 }
 
 #[tauri::command]
-pub fn get_pr_comments(
+pub async fn get_pr_comments(
     db: State<'_, Database>,
     project_id: String,
     pr_number: i64,

@@ -1,7 +1,7 @@
 use std::process::Command;
 
 #[tauri::command]
-pub fn open_in_vscode(path: String) -> Result<(), String> {
+pub async fn open_in_vscode(path: String) -> Result<(), String> {
     Command::new("code")
         .arg(&path)
         .spawn()
@@ -10,7 +10,7 @@ pub fn open_in_vscode(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_in_terminal(path: String) -> Result<(), String> {
+pub async fn open_in_terminal(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         Command::new("open")
@@ -67,7 +67,7 @@ pub fn open_in_terminal(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_in_finder(path: String) -> Result<(), String> {
+pub async fn open_in_finder(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         Command::new("open")

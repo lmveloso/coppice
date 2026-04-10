@@ -11,12 +11,12 @@ pub struct GitFileStatus {
 }
 
 #[tauri::command]
-pub fn list_worktrees(db: State<'_, Database>, project_id: String) -> Result<Vec<Worktree>, String> {
+pub async fn list_worktrees(db: State<'_, Database>, project_id: String) -> Result<Vec<Worktree>, String> {
     db.list_worktrees(&project_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn create_worktree(
+pub async fn create_worktree(
     db: State<'_, Database>,
     project_id: String,
     branch: String,
@@ -67,7 +67,7 @@ pub fn create_worktree(
 }
 
 #[tauri::command]
-pub fn create_worktree_new_branch(
+pub async fn create_worktree_new_branch(
     db: State<'_, Database>,
     project_id: String,
     base_branch: String,
@@ -117,7 +117,7 @@ pub fn rename_worktree(db: State<'_, Database>, id: String, name: String) -> Res
 }
 
 #[tauri::command]
-pub fn delete_worktree(db: State<'_, Database>, id: String) -> Result<(), String> {
+pub async fn delete_worktree(db: State<'_, Database>, id: String) -> Result<(), String> {
     // Collect info needed for cleanup before deleting the DB record
     let mut cleanup_info: Option<(String, String)> = None;
     let projects = db.list_projects().map_err(|e| e.to_string())?;
@@ -161,7 +161,7 @@ pub fn delete_worktree(db: State<'_, Database>, id: String) -> Result<(), String
 }
 
 #[tauri::command]
-pub fn list_branches(db: State<'_, Database>, project_id: String) -> Result<Vec<String>, String> {
+pub async fn list_branches(db: State<'_, Database>, project_id: String) -> Result<Vec<String>, String> {
     let project = find_project(&db, &project_id)?;
 
     let output = user_command("git")
@@ -184,7 +184,7 @@ pub fn list_branches(db: State<'_, Database>, project_id: String) -> Result<Vec<
 }
 
 #[tauri::command]
-pub fn get_current_branch(path: String) -> Result<String, String> {
+pub async fn get_current_branch(path: String) -> Result<String, String> {
     let output = user_command("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(&path)
@@ -199,7 +199,7 @@ pub fn get_current_branch(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_git_status(path: String) -> Result<Vec<GitFileStatus>, String> {
+pub async fn get_git_status(path: String) -> Result<Vec<GitFileStatus>, String> {
     let output = user_command("git")
         .args(["status", "--porcelain=v1"])
         .current_dir(&path)
@@ -226,7 +226,7 @@ pub fn get_git_status(path: String) -> Result<Vec<GitFileStatus>, String> {
 
 /// Read file content from a specific git ref (or working tree)
 #[tauri::command]
-pub fn get_file_content(path: String, file: String, git_ref: Option<String>) -> Result<String, String> {
+pub async fn get_file_content(path: String, file: String, git_ref: Option<String>) -> Result<String, String> {
     if let Some(r) = git_ref {
         // Read from git object
         let output = user_command("git")
@@ -250,7 +250,7 @@ pub fn get_file_content(path: String, file: String, git_ref: Option<String>) -> 
 
 /// Get the merge-base commit between current HEAD and a base branch
 #[tauri::command]
-pub fn get_merge_base(path: String, base_branch: Option<String>) -> Result<String, String> {
+pub async fn get_merge_base(path: String, base_branch: Option<String>) -> Result<String, String> {
     let base = base_branch.unwrap_or_else(|| "main".to_string());
     let output = user_command("git")
         .args(["merge-base", &base, "HEAD"])
@@ -262,7 +262,7 @@ pub fn get_merge_base(path: String, base_branch: Option<String>) -> Result<Strin
 
 /// Get diff for a single file (uncommitted changes)
 #[tauri::command]
-pub fn get_file_diff(path: String, file: String) -> Result<String, String> {
+pub async fn get_file_diff(path: String, file: String) -> Result<String, String> {
     // Try staged diff first, fall back to unstaged
     let output = user_command("git")
         .args(["diff", "HEAD", "--", &file])
@@ -288,7 +288,7 @@ pub fn get_file_diff(path: String, file: String) -> Result<String, String> {
 
 /// Get all files changed in the PR (diff against base branch)
 #[tauri::command]
-pub fn get_pr_diff_files(path: String, base_branch: Option<String>) -> Result<Vec<GitFileStatus>, String> {
+pub async fn get_pr_diff_files(path: String, base_branch: Option<String>) -> Result<Vec<GitFileStatus>, String> {
     let base = base_branch.unwrap_or_else(|| "main".to_string());
 
     // Get merge base
@@ -334,7 +334,7 @@ pub fn get_pr_diff_files(path: String, base_branch: Option<String>) -> Result<Ve
 
 /// Get diff for a file against the PR base branch
 #[tauri::command]
-pub fn get_pr_file_diff(path: String, file: String, base_branch: Option<String>) -> Result<String, String> {
+pub async fn get_pr_file_diff(path: String, file: String, base_branch: Option<String>) -> Result<String, String> {
     let base = base_branch.unwrap_or_else(|| "main".to_string());
 
     let merge_base = user_command("git")

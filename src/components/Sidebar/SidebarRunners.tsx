@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore, type RunnerStatus } from "../../stores/appStore";
 import * as commands from "../../lib/commands";
 
-export function SidebarRunners() {
+export const SidebarRunners = memo(function SidebarRunners() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const selectedWorktreeId = useAppStore((s) => s.selectedWorktreeId);
   const worktreesByProject = useAppStore((s) => s.worktreesByProject);
@@ -121,7 +121,7 @@ export function SidebarRunners() {
       })}
     </div>
   );
-}
+});
 
 /**
  * An empty div that grabs the terminal DOM node from the hidden pool
