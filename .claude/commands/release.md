@@ -13,11 +13,13 @@ Create a new release for Stuductor/Coppice.
    - `src-tauri/tauri.conf.json` — the `"version"` field
    - `src-tauri/Cargo.toml` — the `version` field
 
-4. **Update the Cargo lock file** by running `cd src-tauri && cargo generate-lockfile`.
+4. **Update lock files:**
+   - Run `npm install --package-lock-only` to sync package-lock.json
+   - Run `cd src-tauri && cargo generate-lockfile` to sync Cargo.lock
 
 5. **Commit the version bump:**
    ```
-   git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+   git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
    git commit -m "Release v<VERSION>"
    ```
 

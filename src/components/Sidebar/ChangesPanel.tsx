@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, memo } from "react";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "../../stores/appStore";
 import { PRPanel } from "../PRStatus/PRPanel";
 import * as commands from "../../lib/commands";
@@ -43,6 +44,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
   const [loadingUncommitted, setLoadingUncommitted] = useState(false);
   const [loadingPr, setLoadingPr] = useState(false);
   const [unpushedCount, setUnpushedCount] = useState(0);
+  const [revertingFile, setRevertingFile] = useState<string | null>(null);
 
   // Use refs for async operations to avoid stale closures and dependency churn
   const wtPathRef = useRef(worktree?.path);
@@ -111,6 +113,29 @@ export const ChangesPanel = memo(function ChangesPanel() {
   const baseBranch = baseBranchRef.current;
   const hasLocalChanges = uncommittedFiles.length > 0 || unpushedCount > 0;
 
+  const handleRevert = async (file: string, status: string) => {
+    if (!worktree) return;
+    const action = status === "??" ? "delete" : "revert";
+    const confirmed = await ask(`Are you sure you want to ${action} "${file}"?`, { title: "Revert changes", kind: "warning" });
+    if (!confirmed) return;
+    const wtPath = worktree.path;
+    setRevertingFile(file);
+    try {
+      await commands.revertFile(wtPath, file, status);
+      // Refresh status from git to get the real state
+      const [freshStatus, freshCount] = await Promise.all([
+        commands.getGitStatus(wtPath),
+        commands.getUnpushedCount(wtPath).catch(() => 0),
+      ]);
+      setUncommittedFiles(freshStatus);
+      setUnpushedCount(freshCount);
+    } catch (e) {
+      console.error("Failed to revert file:", e);
+    } finally {
+      setRevertingFile(null);
+    }
+  };
+
   const handlePush = () => {
     if (uncommittedFiles.length > 0) {
       requestClaudeTab(
@@ -137,7 +162,7 @@ export const ChangesPanel = memo(function ChangesPanel() {
         </div>
         {hasLocalChanges && (
           <button
-            className="ml-auto px-2 py-0.5 text-[11px] rounded bg-accent text-white hover:brightness-110 transition-all whitespace-nowrap shrink-0"
+            className="ml-auto px-1.5 py-0.5 text-[10px] rounded bg-bg-hover text-text-secondary hover:text-text-primary hover:bg-bg-active transition-colors whitespace-nowrap shrink-0"
             onClick={handlePush}
           >
             {uncommittedFiles.length > 0 ? "Commit & Push" : `Push (${unpushedCount})`}
@@ -152,6 +177,8 @@ export const ChangesPanel = memo(function ChangesPanel() {
             loading={loadingUncommitted}
             emptyMessage="No uncommitted changes"
             onFileClick={(f) => openDiffTab(worktree.id, f, worktree.path, "uncommitted")}
+            onRevert={handleRevert}
+            revertingFile={revertingFile}
           />
         )}
         {tab === "pr-changes" && (
@@ -203,25 +230,44 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-function FileList({ files, loading, emptyMessage, onFileClick }: {
+function FileList({ files, loading, emptyMessage, onFileClick, onRevert, revertingFile }: {
   files: GitFileStatus[];
   loading: boolean;
   emptyMessage: string;
   onFileClick: (file: string) => void;
+  onRevert?: (file: string, status: string) => void;
+  revertingFile?: string | null;
 }) {
   if (loading && files.length === 0) return <div className="px-3 py-2 text-[11px] text-text-tertiary">Loading...</div>;
   if (files.length === 0) return <div className="px-3 py-2 text-[11px] text-text-tertiary">{emptyMessage}</div>;
   return (
     <div className="py-0.5">
       {files.map((f) => (
-        <button
+        <div
           key={f.file}
-          className="w-full flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover transition-colors text-left"
-          onClick={() => onFileClick(f.file)}
+          className="group w-full flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-bg-hover transition-colors"
         >
-          <StatusBadge status={f.status} />
-          <span className="truncate text-text-secondary font-mono">{f.file}</span>
-        </button>
+          <button
+            className="flex items-center gap-2 min-w-0 flex-1 text-left"
+            onClick={() => onFileClick(f.file)}
+          >
+            <StatusBadge status={f.status} />
+            <span className="truncate text-text-secondary font-mono">{f.file}</span>
+          </button>
+          {onRevert && (
+            <button
+              className="opacity-0 group-hover:opacity-100 shrink-0 px-1 py-0.5 text-[10px] text-text-tertiary hover:text-error transition-all"
+              title="Revert changes"
+              disabled={revertingFile === f.file}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRevert(f.file, f.status);
+              }}
+            >
+              {revertingFile === f.file ? "..." : "\u21A9"}
+            </button>
+          )}
+        </div>
       ))}
     </div>
   );

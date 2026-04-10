@@ -101,9 +101,17 @@ export async function getUnpushedCount(path: string): Promise<number> {
   return invoke("get_unpushed_count", { path });
 }
 
+export async function revertFile(path: string, file: string, status: string): Promise<void> {
+  return invoke("revert_file", { path, file, status });
+}
+
 // Git commands
 export async function listBranches(projectId: string): Promise<string[]> {
   return invoke("list_branches", { projectId });
+}
+
+export async function updateBaseBranch(projectId: string, branch: string): Promise<void> {
+  return invoke("update_base_branch", { projectId, branch });
 }
 
 // External tool commands
