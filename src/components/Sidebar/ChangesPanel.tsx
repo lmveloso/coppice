@@ -86,9 +86,9 @@ export const ChangesPanel = memo(function ChangesPanel() {
     return () => { cancelled = true; clearTimeout(timer); clearInterval(interval); };
   }, [worktree?.id]);
 
-  // PR files — only when tab is active
+  // PR files — always fetch so tab count stays current
   useEffect(() => {
-    if (tab !== "pr-changes" || !worktree) return;
+    if (!worktree) return;
     let cancelled = false;
 
     const refresh = async () => {
@@ -104,9 +104,10 @@ export const ChangesPanel = memo(function ChangesPanel() {
       }
     };
 
-    const timer = setTimeout(refresh, 300);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [tab, worktree?.id]);
+    const timer = setTimeout(refresh, 500);
+    const interval = setInterval(refresh, 5000);
+    return () => { cancelled = true; clearTimeout(timer); clearInterval(interval); };
+  }, [worktree?.id]);
 
   if (!worktree || !project) return null;
 
