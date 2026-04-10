@@ -157,6 +157,25 @@ export const PRPanel = memo(function PRPanel({ projectId, branch, worktreePath, 
             </button>
           </div>
 
+          {/* Merge conflict warning */}
+          {pr.mergeable === "CONFLICTING" && (
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-error/10 rounded border border-error/20">
+              <svg width="12" height="12" viewBox="0 0 12 12" className="text-error shrink-0">
+                <path d="M6 1L1 10h10L6 1z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
+                <path d="M6 5v2M6 8.5v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+              <span className="text-[11px] text-error flex-1">Merge conflicts</span>
+              <button
+                onClick={() => onFixWithClaude(
+                  `This PR (#${pr.number}) has merge conflicts with the base branch. Please merge the base branch into the current branch and resolve any conflicts.\n\nRun: git merge origin/HEAD\n\nThen resolve any conflicts, stage the files, and commit.`
+                )}
+                className="px-2 py-0.5 text-[10px] font-medium bg-error/20 text-error hover:bg-error/30 rounded transition-colors"
+              >
+                Resolve with Claude
+              </button>
+            </div>
+          )}
+
           {/* Check runs — vertical list */}
           {checks.length > 0 && (
             <div className="space-y-0.5">
