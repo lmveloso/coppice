@@ -9,6 +9,7 @@ export interface Project {
   run_command: string;
   env_files: string[];
   pr_create_skill: string;
+  claude_command: string;
   created_at: string;
 }
 

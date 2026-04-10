@@ -12,6 +12,7 @@ pub struct Project {
     pub run_command: String,
     pub env_files: Vec<String>,
     pub pr_create_skill: String,
+    pub claude_command: String,
     pub created_at: String,
 }
 
@@ -26,6 +27,7 @@ pub struct ProjectFormData {
     pub run_command: String,
     pub env_files: Vec<String>,
     pub pr_create_skill: String,
+    pub claude_command: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
