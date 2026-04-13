@@ -117,6 +117,30 @@ impl PtyManager {
             if let Ok(logname) = std::env::var("LOGNAME") {
                 cmd.env("LOGNAME", logname);
             }
+
+            // On Linux, strip AppImage-injected env vars so shells and the
+            // tools spawned from them (git, eza, …) use the system's libraries
+            // and GTK/GIO config instead of the bundled ones. Without this,
+            // every git call inside the terminal logs "libpcre2-8.so.0: no
+            // version information available" because it picks up the
+            // AppImage's libpcre2 via LD_LIBRARY_PATH.
+            #[cfg(target_os = "linux")]
+            for var in [
+                "LD_LIBRARY_PATH",
+                "APPDIR",
+                "APPIMAGE",
+                "GTK_DATA_PREFIX",
+                "GTK_THEME",
+                "GTK_EXE_PREFIX",
+                "GTK_PATH",
+                "GTK_IM_MODULE_FILE",
+                "GDK_BACKEND",
+                "GDK_PIXBUF_MODULE_FILE",
+                "GIO_EXTRA_MODULES",
+                "GSETTINGS_SCHEMA_DIR",
+            ] {
+                cmd.env_remove(var);
+            }
         }
 
         let child = pair
